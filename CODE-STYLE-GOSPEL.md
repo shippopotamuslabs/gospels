@@ -15,7 +15,6 @@ enforcement lines (see "Local material" at the end).
 | Accept `modifier: Modifier = Modifier` as the **last** parameter. | Apply the passed `modifier` to an inner element instead of the outermost layout. |
 | Use `kotlinx.collections.immutable` in UI state classes. | Scatter `@Stable` or `@Immutable` preemptively without profiling. |
 | Prefer method references (`::onModeChange`) for callbacks. | Create new lambda instances inside `LazyColumn` or `LazyRow` item blocks. |
-| Use `Modifier.animateBounds()` within `LookaheadScope` for dynamic layout changes. | Use legacy `animateContentSize` for complex structural changes. |
 | Use `stateIn` with `WhileSubscribed(5_000)` for ViewModel state. | Manually `.collect` and `.update` state inside `viewModelScope.launch`. |
 | Use `collectAsStateWithLifecycle()` in Compose. | Use `collectAsState()`, `GlobalScope`, or `runBlocking`. |
 | Use `derivedStateOf` for state that depends on other state. | Perform heavy calculations or filtering directly in the Composable body. |
@@ -117,8 +116,9 @@ enforcement lines (see "Local material" at the end).
 
 ### 8.1 Test Coverage Discipline (Agent Mandate)
 
-- Whenever the task **adds** new production code (new classes, public functions, significant logic in domain, data, inference, ViewModels, repositories, mappers, use cases, etc.) **or modifies** existing code, the agent **MUST**:
+- Whenever the task **adds** new production code (new classes, public functions, significant logic in domain, data, ViewModels, repositories, mappers, use cases, etc.) **or modifies** existing code, the agent **MUST**:
   - Write new unit tests (or extend existing ones) in the matching `src/test/kotlin` source set that cover the new/modified behavior, main paths, edge cases, and error conditions.
+
   - Use JUnit 5 + Turbine (for `StateFlow`/`Flow`) + hand-written fakes as defined above and in `UNIT-TESTING-GOSPEL.md`.
 - For pure UI/Compose changes that affect behavior or interactions: also add or update Compose UI tests using `createComposeRule()` and semantic matchers.
 - Trivial styling-only or preview-only changes are exempt from new tests, but the full test suite must still pass.
