@@ -14,7 +14,7 @@ each, in one place, with the projects pointing at it.
 - `COMPOSE-GOSPEL.md`: the Compose UI system: spacing, shapes, typography, components, previews.
 - `BUTTON-SHAPE-GOSPEL.md`: button shape and the press morph. Full pill by default, 12dp square variant.
 - `GLASS-BARS-GOSPEL.md`: top and bottom bars in glass, on Haze. The top bar stays glazed at rest.
-- `WOMBO-GOSPEL.md`: the voice. Every word a user reads, in every app and on the site.
+- `WUMBO-GOSPEL.md`: the voice. Every word a user reads, in every app and on the site.
 - `ARCHITECTURE-GOSPEL.md`: Clean Architecture: dependency direction, layer responsibilities, domain model policy, the presentation contract.
 - `CODE-STYLE-GOSPEL.md`: Kotlin and Compose style: naming, formatting, stability, coroutines.
 - `UNIT-TESTING-GOSPEL.md`: testing standards: fakes over mocks, JUnit 5, Turbine, Robolectric.
