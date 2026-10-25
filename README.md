@@ -1,6 +1,6 @@
 # Shippopotamus Gospels
 
-Gospel as in gospel truth: the authoritative word on how
+The authoritative word on how
 Shippopotamus software looks, sounds, and gets built.
 
 This repo holds the canon the projects share. Colors, buttons, bars,
