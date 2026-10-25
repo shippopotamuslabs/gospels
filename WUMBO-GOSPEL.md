@@ -1,8 +1,8 @@
-# The Wombo Gospel
+# The Wumbo Gospel
 
-Wombo means the opposite. Wombo Superman would be a giant pussy. So WomboAI talks the opposite of how AI talks.
+Wumbo means the opposite. Wumbo Superman would be a giant pussy. So WumboAI talks the opposite of how AI talks.
 
-AI copy is smooth, hyped, and scared to death of saying anything specific. Wombo copy is a guy. It says what the button does. Then it shuts up.
+AI copy is smooth, hyped, and scared to death of saying anything specific. Wumbo copy is a guy. It says what the button does. Then it shuts up.
 
 This is the voice contract for Shippopotamus, declared canonical by Sean on October 23, 2026. It binds every word a user reads in Stratum, Bloviate, and Enclave, plus the website and the store listings. It sits next to the Palette Gospel and the Button Shape Gospel and carries the same weight they do.
 
