@@ -126,7 +126,7 @@ persistence type outside `infrastructure` is a misplacement.
 
 ## 8. Testing Conventions
 
-- Unit tests: JUnit 5 + Turbine for Flow testing + **hand-written fakes** for project-owned ports (see `UNIT-TESTING-GOSPEL.md`). MockK only for third-party SDK boundaries with `@Suppress` + justification; no `verify` in ViewModel tests.
+- Unit tests: JUnit 5 + Turbine for Flow testing + **hand-written fakes** for project-owned ports (see `TESTING-GOSPEL.md` §6). MockK only for third-party SDK boundaries with `@Suppress` + justification; no `verify` in ViewModel tests.
 - Compose UI tests: `createComposeRule()` with semantic matchers.
 - Test names: `fun methodName_condition_expectedResult()` or backtick descriptive names.
 - Fakes for previews live alongside models. Fakes for tests live in the shared testing module or the module `test/` source set (single-use only).
@@ -136,7 +136,7 @@ persistence type outside `infrastructure` is a misplacement.
 - Whenever the task **adds** new production code (new classes, public functions, significant logic in domain, infrastructure, ViewModels, port adapters, mappers, use cases, etc.) **or modifies** existing code, the agent **MUST**:
   - Write new unit tests (or extend existing ones) in the matching `src/test/kotlin` source set that cover the new/modified behavior, main paths, edge cases, and error conditions.
 
-  - Use JUnit 5 + Turbine (for `StateFlow`/`Flow`) + hand-written fakes as defined above and in `UNIT-TESTING-GOSPEL.md`.
+  - Use JUnit 5 + Turbine (for `StateFlow`/`Flow`) + hand-written fakes as defined above and in `TESTING-GOSPEL.md` §6.
 - For pure UI/Compose changes that affect behavior or interactions: also add or update Compose UI tests using `createComposeRule()` and semantic matchers.
 - Trivial styling-only or preview-only changes are exempt from new tests, but the full test suite must still pass.
 - Before declaring work complete, the agent must have written/updated the tests **and** executed them successfully.
