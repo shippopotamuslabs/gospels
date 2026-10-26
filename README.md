@@ -17,7 +17,7 @@ each, in one place, with the projects pointing at it.
 - `WUMBO-GOSPEL.md`: the voice. Every word a user reads, in every app and on the site.
 - `ARCHITECTURE-GOSPEL.md`: Clean Architecture: dependency direction, layer responsibilities, domain model policy, the presentation contract.
 - `CODE-STYLE-GOSPEL.md`: Kotlin and Compose style: naming, formatting, stability, coroutines.
-- `UNIT-TESTING-GOSPEL.md`: testing standards: fakes over mocks, JUnit 5, Turbine, Robolectric.
+- `TESTING-GOSPEL.md`: testing standards: pyramid levels, classical school, fakes over mocks; Android grounding in JUnit 5, Turbine, Robolectric.
 
 ## How a project uses this repo
 

@@ -344,7 +344,7 @@ running, origin of the request.
   decides meaning.
 - Tests follow the split: policy tests assert meaning over domain
   values; use-case tests assert gating over fake-port state (see
-  [UNIT-TESTING-GOSPEL.md](UNIT-TESTING-GOSPEL.md)).
+  [TESTING-GOSPEL.md](TESTING-GOSPEL.md)).
 
 ---
 
