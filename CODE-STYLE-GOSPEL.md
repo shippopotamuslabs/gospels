@@ -46,12 +46,29 @@ enforcement lines (see "Local material" at the end).
 | Constant | UPPER_SNAKE_CASE |
 | Private backing flow | `_uiState` pattern: `private val _uiState = MutableStateFlow(...)` |
 | Resource IDs | snake_case |
-| Domain Ports | Port suffix on the interface |
+| Application / outbound ports | `*Port` suffix on the interface; capability not mechanism; no `I-` prefix; no mechanism words (`Foreground`, `Context`, `Intent`) in name or signature; domain/application types only |
+| Port implementations | `Android*` / `DataStore*` / `Room*` + capability (e.g. `AndroidBubbleServiceStarter`); `Repository` allowed only as such an implementation-class name (e.g. `Room*Repository` implementing a `*Port`), never as interface vocabulary |
+| Use cases | `*UseCase` suffix; live in Application (see `ARCHITECTURE-GOSPEL.md` §3.2) |
+| Domain policies | `*Policy` suffix; pure functions, never `*Port` |
+| Domain services | Plain capability name, never `*Port` (a domain interface implemented inside Domain is a domain service, not a port) |
+| Fakes | `Fake*Port` hand-written fakes, one per owned application port |
 
 ## 3. File Organization
 
 - One public top-level composable per file.
 - Helper composables and preview composables go below the main public composable as `private`.
+
+### 3.1 Package Layout Mirrors the Layers
+
+Packages follow the layer/module map in `ARCHITECTURE-GOSPEL.md` §6:
+`domain` (models, `*Policy`, domain services), `application`
+(`*UseCase`, `*Port`, outcomes), `infrastructure` (port adapters,
+persistence as a subpackage — there is no sibling `data` layer),
+`presentation` (screens, ViewModels, mappers), `entrypoints`
+(receivers, services, workers, activities), `di` (composition root).
+A type lives in the package of the layer that owns it; a use case
+anywhere but `application`, a port anywhere but `application`, or a
+persistence type outside `infrastructure` is a misplacement.
 
 ## 4. Compose-Specific Rules
 
@@ -116,7 +133,7 @@ enforcement lines (see "Local material" at the end).
 
 ### 8.1 Test Coverage Discipline (Agent Mandate)
 
-- Whenever the task **adds** new production code (new classes, public functions, significant logic in domain, data, ViewModels, repositories, mappers, use cases, etc.) **or modifies** existing code, the agent **MUST**:
+- Whenever the task **adds** new production code (new classes, public functions, significant logic in domain, infrastructure, ViewModels, port adapters, mappers, use cases, etc.) **or modifies** existing code, the agent **MUST**:
   - Write new unit tests (or extend existing ones) in the matching `src/test/kotlin` source set that cover the new/modified behavior, main paths, edge cases, and error conditions.
 
   - Use JUnit 5 + Turbine (for `StateFlow`/`Flow`) + hand-written fakes as defined above and in `UNIT-TESTING-GOSPEL.md`.

@@ -12,14 +12,14 @@ standards they all share.
 
 | Rule | Description |
 | :--- | :--- |
-| **ALWAYS** Prefer Fakes | Use real, lightweight in-memory implementations of ports and repositories (shared `Fake<Port>` fakes, `InMemoryDatabase`) instead of programming mock expectations. |
+| **ALWAYS** Prefer Fakes | Use real, lightweight in-memory implementations of owned application ports (shared `Fake*Port` fakes, `InMemoryDatabase`) instead of programming mock expectations. |
 | **ALWAYS** JUnit 5 | Use `org.junit.jupiter.api` annotations (`@Test`, `@BeforeEach`, `@Nested`, `@DisplayName`). |
 | **ALWAYS** State-Based Assertions | Assert on the *result* of an operation (e.g., the value in a StateFlow, a returned domain object, a DB row) rather than the *process* (e.g., "was this method called"). |
 | **ALWAYS** Use Turbine | Use the Turbine library for testing Kotlin Flows and StateFlows to ensure event-by-event verification. |
 | **ALWAYS** Main Dispatcher Rule/Extension | Use the shared `MainDispatcherRule` / `MainDispatcherExtension` to swap `Dispatchers.Main` for a `TestDispatcher`. |
 | **ALWAYS** Copy Golden Patterns | Before inventing a test structure, open the matching golden reference (see §4). |
 | **NEVER** Mock Android Classes | Do not mock `Context`, `SharedPreferences`, or `Bundle`. Use Robolectric's real implementations or appropriate fakes. |
-| **NEVER** Mock Owned Ports | Do not `mockk` repository/use-case ports the project owns. Use hand-written fakes. |
+| **NEVER** Mock Owned Ports | Do not `mockk` owned application ports the project owns. Use hand-written `Fake*Port` fakes. |
 | **NEVER** `verify()` ViewModels | Do not use MockK `verify` / `coVerify` in `*ViewModelTest.kt` — assert UI state instead. |
 | **NEVER** Use JUnit 4 in New Tests | Avoid `@Rule`, `@Test(expected=...)`, `@Before`, `@RunWith` in new tests. Migrated tests must be JUnit 5 compliant. |
 | **NEVER** Mock Implementation Details | Avoid mocking private methods or internal helper classes. Test the public API of the unit. |
@@ -30,10 +30,10 @@ standards they all share.
 ## 2. Technical Stack
 
 - **JUnit 5:** The engine for all local unit tests.
-- **Hand-written fakes:** One `Fake<Port>` per owned port, with
+- **Hand-written fakes:** One `Fake*Port` per owned application port, with
   `seed` / `setShouldFail` / `clear` toggles. Reusable fakes live in
   the shared testing module; feature-local fakes only when single-use.
-  A new port ships its fake in the same change as the port.
+  A new outbound port ships its fake in the same change as the port.
 - **MockK:** Use only when a Fake is impractical (third-party SDK
   boundaries, static Android APIs). Requires a file-level `@Suppress`
   with a one-line justification comment. Never for project-owned ports,
@@ -69,7 +69,7 @@ mocks break on both.
 
 ### 3.3 Awaiting Fire-and-Forget Persistence (`runTest` + `Dispatchers.IO`)
 
-A repository that updates an in-memory cache synchronously but
+An infrastructure adapter that updates an in-memory cache synchronously but
 persists asynchronously — `scope.launch(Dispatchers.IO) { … }` —
 **cannot** be awaited with a virtual-time poll inside `runTest`.
 
@@ -91,12 +91,39 @@ Two correct shapes:
 Follow whichever option matches the class's construction; never bridge
 real-dispatcher work with a `delay()` poll.
 
+### 3.4 Test Placement by Layer
+
+Where the test lives follows what the unit under test owns:
+
+- **Domain policies** — plain JVM unit tests. No port fakes, no
+  Robolectric: construct domain values, evaluate the policy, assert
+  the decision. A policy test that needs a fake port has absorbed an
+  application precondition — split it out (see
+  `ARCHITECTURE-GOSPEL.md` §5).
+- **Use cases** — plain JVM tests against `Fake*Port` fakes,
+  asserting the sealed outcome: success, not-allowed (policy or
+  precondition refused), or refused (fake steered to deny, standing in
+  for the platform). No Robolectric, no real Android types.
+- **Adapters** (infrastructure and `:app` port implementations) —
+  Robolectric or instrumented tests asserting translation only: the
+  right `Intent`, the right row, the right outcome branch, and error
+  translation (platform exception → `Refused`). Never policy, never
+  orchestration.
+- **Entrypoints** — at most a translation test (event X triggers
+  use-case call Y with input Z). If the entrypoint needs a decision
+  test, the decision is misplaced — extract the use case (see
+  `ARCHITECTURE-GOSPEL.md` §10–§11).
+- **New outbound ports** — a new port ships its `Fake*Port` in the
+  same change, living in the port-owning module's tests/fixtures
+  (`:core:application` tests/fixtures) or the shared testing module
+  (`:core:testing`).
+
 ---
 
 ## 4. Golden Test References
 
 The Now in Android project's test files are the golden references for
-these patterns: repository fakes/tests, ViewModel JUnit 5 patterns,
+these patterns: port-adapter fakes/tests, ViewModel JUnit 5 patterns,
 Robolectric/Android logic, and the coroutines Main-dispatcher utility.
 Each repo vendors or syncs its own copy (a `golden-test-examples/`
 folder with a sync script) and adapts the patterns to its own
