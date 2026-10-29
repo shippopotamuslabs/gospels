@@ -148,6 +148,8 @@ persistence type outside `infrastructure` is a misplacement.
 | Explicitly catch and rethrow `CancellationException`. | Catch `Exception` generically without re-throwing cancellation. |
 | Return `Result.retry()` on transient network/IO failures. | Return `Result.failure()` for recoverable quota timeouts. |
 
+The general failure rules (classification, handling, emission) are §11; this table is the worker-specific shape.
+
 ## 10. Partial Success: Diagnostics as Values
 
 When a computation can degrade without failing — it skips a step, drops an input, falls back to a default — the degradation is reported as data, not logged and not swallowed. Below the boundary there is no other sanctioned channel: throwing kills work that can still succeed, and silent skipping makes the defect unobservable.
@@ -161,6 +163,193 @@ When a computation can degrade without failing — it skips a step, drops an inp
 - **Adoption is incremental.** New degradation paths use the pattern from the start. Existing silent paths adopt it when next touched under their own ticket; there is no retrofit sweep.
 
 **Worked example.** Stratum's progression snapshot (STR-250): the sealed `ProgressionDiagnostic` in the domain records each history baseline the load math had to skip and why; the snapshot use case returns the diagnostics on its outcome; the session runtime at the feature boundary logs each exactly once. Stratum's code style contract carries the file-level detail as local material.
+
+## 11. Failure Classification: Expected vs Exceptional
+
+Every failure in a Shippopotamus codebase belongs to exactly one class, decided by
+what the failure *is*, never by how it happens to be carried. The class decides
+everything downstream: the mechanism, the owner, the telemetry home, and whether
+anything is allowed to alert on it.
+
+- **A normal answer is not a failure.** A predicate question (does this key exist, is
+  this value valid) returns a plain value: a boolean, an `Option` / nullable, an empty
+  collection. Both answers are equally valid outcomes, so there is nothing to
+  classify.
+- **An expected failure is the system doing its job.** A rejection, a failed
+  precondition, malformed input, an expected provider condition: routine outcomes of
+  correct code meeting the real world. Expected failures are handled gracefully
+  inside the app, return an intentional handled result, and are recorded as
+  structured expected-outcome telemetry. They raise no alert and crash nothing.
+- **An exceptional failure is the system broken.** A programmer error, a broken
+  invariant, an impossible state, an unexpected provider or system failure.
+  Exceptional failures are alert-worthy and surface as 500-class failures. "500-class"
+  names each surface's exceptional expression: an HTTP 500 where the surface has
+  responses; on screens, workers, and tasks, the boundary containment below.
+- **A partial success is neither.** A computation that degrades without failing
+  follows §10: diagnostics as values, drained once at the boundary.
+
+### Classification by semantic owner
+
+Classify a failure by the semantic owner of the failed condition:
+
+- Malformed transport input belongs to **presentation**.
+- A semantic business rejection uses a **domain-owned** failure type: a domain
+  outcome branch in Result-pattern code, or a specific domain exception subtype where
+  exceptions are the mechanism.
+- A use-case precondition or coordination failure may use an **application-owned**
+  type.
+- **Infrastructure** translates expected provider conditions at its boundary into
+  the explicit inward result or exception the port requires. Provider errors never
+  leak inward (ARCHITECTURE-GOSPEL §3.3); translation keeps the original error
+  attached as the cause, so the evidence survives the type change.
+
+Do not force every routine failure into the domain, and do not let a failure drift
+into a class it does not belong to. An internal argument-contract violation is a
+programmer error and stays exceptional, even when the call originated in
+presentation.
+
+### Mechanism
+
+- **The Result pattern is the default** in every Shippopotamus stack, stated as each
+  language's expression of the same rule: Kotlin sealed outcomes and `Result`, Rust
+  `Result<T, E>`, Go multiple return values `(T, error)`, Python and TypeScript
+  Result-style types. Where a language or library surface does not support it well,
+  use the idiomatic mechanism for that surface and name the fallback in the repo's
+  contract.
+- **Classification follows semantics, not mechanism.** An expected outcome stays
+  expected however it is carried; wrapping a business rejection in an exception type
+  does not make it exceptional.
+- **No failure mechanism as control flow.** A throw steers nothing routine. Branching
+  on a typed Result branch is the mechanism working as designed: visible in the
+  signature, local to the caller.
+- **Expected failures stay explicit and typed at every layer they cross**: a branch
+  of the result or outcome type (ARCHITECTURE-GOSPEL §8), never a side channel.
+  Presentation preserves intentional handled outcomes (a refusal shown to the user, a
+  validation result, a non-500 response) instead of collapsing them into generic
+  errors.
+- **Exceptional failures use the most specific type available** where exceptions are
+  the mechanism: the most specific built-in or custom exception type that fits; a
+  generic base exception only for an unexpected failure when no meaningful specific
+  type exists.
+- **Cancellation is not a failure.** Cancellation propagates as cancellation: no
+  error result, no error log, no alert, no failure telemetry (§9 covers the worker
+  shape).
+
+### Handling
+
+- **Handle each failure exactly once.** At each layer a failure is handled there
+  (decision made, outcome produced) or propagated. Never both.
+- **Handling is terminal and changes the type.** Handling consumes the failure and
+  returns a non-error value: a response, a UI state, an outcome object. Code that has
+  handled a failure has nothing left to propagate.
+- **Boundary containment for the exceptional case.** Each boundary (request handler,
+  screen, task) aborts the operation, records the full detail internally, and returns
+  a generic user-facing message with a correlation reference. Internals (stack
+  traces, paths, provider messages) never reach the user. Where state cannot be
+  trusted, stopping the operation, and if needed the process under a supervisor,
+  beats continuing in an unknown state.
+- **The user always gets a friendly error**, for expected and exceptional failures
+  alike. The classes differ in telemetry and alerting, never in courtesy.
+
+### Emission: one home per class
+
+Classification also decides the telemetry store. Each class has exactly one home, so
+nothing is sent twice and no two series can disagree.
+
+- **Exception records** (fatals, ANRs, handled exceptional failures recorded by the
+  boundary) live in **Crashlytics**, the crash sensor: automatic capture,
+  symbolication, grouping, breadcrumbs. Crashlytics data reaches Grafana through
+  Crashlytics' native BigQuery export, queried via Grafana's BigQuery data source.
+- **Outcome telemetry** (successes included; rates need denominators), traces,
+  metrics, and operational facts live in the **OpenTelemetry stream** to Grafana.
+- **The single designed exception** is a bare OTel counter marking that an
+  exceptional failure occurred, for real-time rate alerting. The record itself stays
+  in Crashlytics; the counter's rate alert is the real-time form of the
+  exceptional-class alert, not a second page on the same condition.
+- **A telemetry router per app** (infrastructure layer) owns the class-to-store
+  mapping. It is the only code referencing either the Crashlytics SDK or the OTel
+  exporter, gate-enforced. Its API is typed by telemetry kind with no destination
+  parameter: callers declare what a fact is, the router decides where it goes.
+  Layer-scoped facades give each outer layer only the emit methods legal for it
+  (presentation emits outcomes, never exception records). Scrubbing, consent, and
+  sampling are applied inside the router. Emission facades are app-shell and platform
+  mechanisms owned by the boundary: not outbound ports, not use cases (this is the
+  stated reconciliation with ARCHITECTURE-GOSPEL §3.4 and §3.5, not an override).
+- **Correlation attributes** are shared across both stores: session, app version,
+  hashed install id, trace id, stamped into Crashlytics custom keys and OTel
+  attributes alike, so the two stores pivot into each other.
+- **Alerting consolidates into Grafana.** Classification decides alert eligibility;
+  volume decides paging. Expected failures never alert. Exceptional failures are
+  recorded as errors and are alert-eligible; paging fires on actionable rates and
+  burn, not on a single occurrence. Once an app's Grafana wiring is proven, all of
+  its alerting consolidates into Grafana and its Crashlytics alert rules retire; the
+  Crashlytics SDK remains the capture mechanism and stops being an alerting surface.
+  During wiring, existing Crashlytics alerts stay live so coverage never gaps.
+- **Export authentication is a per-app choice, made explicitly.** Where a repo's
+  contract forbids embedding write tokens in the shipped artifact, export goes
+  through an authenticated collector (the Firebase Auth / App Check callable shape).
+  An existing embedded-key arrangement in one app is that app's gated legacy pattern,
+  never a default another app inherits silently.
+
+### Enforcement
+
+The gospels are working rules for agents, not essays. Each rule below states its
+verification method; a rule an agent cannot be audited against does not ship.
+
+- **E1. The propagation path has no logging capability.** Domain and application
+  define no logging port, inject no logger, and import no logging or telemetry
+  library. A logging port in either layer is a layer violation on its face. Logging
+  lives in the outer layers only: presentation, infrastructure, platform
+  entrypoints, the app shell. Infrastructure logs its own translation work;
+  presentation and entrypoints log what they handle; the boundary logs what reaches
+  it. *Verification:* module and package dependency checks show no logging or
+  telemetry dependency in domain and application; a repo-wide search for logger
+  types, logging ports, and log calls in those source sets returns zero hits.
+- **E2. Exactly one handler per boundary, and reaching it means unhandled.** Each
+  boundary names one handler that logs and renders exceptional failures. Code below
+  the boundary never logs an error it propagates; its legal moves are annotate (wrap
+  with context, cause preserved), translate at a port boundary, recover fully, or
+  propagate. *Verification:* search catch blocks and error branches outside the
+  boundary for log calls; each hit is a violation unless the same block fully handles
+  the failure and returns an outcome.
+- **E3. Handling is terminal and changes the type.** *Verification:* functions that
+  log an error do not also return or throw that same error; functions that return an
+  error do not log it. Review and lint check the pairing.
+- **E4. Catch blocks have three legal shapes.** (1) **Recover:** produce the handled
+  outcome and return it. (2) **Translate:** wrap in the owning layer's type, original
+  attached as cause, and propagate. (3) **Boundary render:** log once with full
+  detail, return the generic user-facing result. Any other shape (empty catch,
+  catch-and-continue, catch-log-rethrow, catch-and-return-default that hides a
+  failure) is a violation to fix or to flag with a ticket.
+- **E5. Lints and architecture tests carry the rules.** Each consuming repo wires the
+  checks its stack supports: forbidden-import and module-dependency rules for E1,
+  static analysis for the E2/E3/E4 shapes, must-use and unchecked-error linters where
+  the language provides them (Rust `Result`, Go error checks). The gospel states the
+  rule and the kind of gate; each repo's contract names its exact tools and commands,
+  per the Local material split. *Verification:* the PR that adopts this canon in a
+  repo names the gates it added and shows them running.
+- **E6. Agent conduct.** When you create a failure, classify it (normal answer /
+  expected / exceptional) in the same change; an unclassified new error type or throw
+  site is unfinished work. When you touch a catch block or an error branch, bring it
+  to an E4 shape in the same change when the fix is small; when it is not small, file
+  the ticket and leave a `// DEBT:` reference per ARCHITECTURE-GOSPEL §11. Never add
+  a logger, a logging port, or a telemetry call to the domain or application layer to
+  solve a local visibility problem: surface the fact in the outcome type and let the
+  handling layer record it.
+
+### Worked mapping
+
+| Case | Owner | Mechanism | Handled outcome | Telemetry |
+|------|-------|-----------|-----------|-----------|
+| Malformed input | Presentation | Validation result at the boundary | User-facing correction, non-500 response | Expected-outcome record in OTel |
+| Business rejection | Domain | Domain outcome branch / specific domain exception subtype | The refusal, shown or returned as designed | Expected-outcome record in OTel |
+| Precondition failure | Application | Application-owned failure type on the outcome | Operation declined with its reason as state | Expected-outcome record in OTel |
+| Expected provider condition | Infrastructure | Translated at the port boundary, cause attached | The port's explicit inward result | Expected-outcome record in OTel |
+| Unexpected failure | Boundary | Most specific exception type; boundary containment | Generic user message with correlation reference | Exception record in Crashlytics (BigQuery feed to Grafana) + bare OTel occurrence counter |
+
+Cross-references: outcome types are ARCHITECTURE-GOSPEL §8; adapter translation is
+§3.3; partial success is §10 of this gospel; worker retry/failure results are §9 of
+this gospel.
 
 ## Local material
 
