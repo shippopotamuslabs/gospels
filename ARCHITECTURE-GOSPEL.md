@@ -541,11 +541,19 @@ production diff the reviewer has to hold in their head.
 
 Tickets are sliced to fit the rule. Work that cannot land in
 ~400-line production slices is split into multiple tickets before it
-starts, each slice green and mergeable on its own. A change that is
-atomic by nature — a module split, a codebase-wide rename — cannot be
-sliced without leaving the tree broken between steps; the ticket
-names that up front, before the work starts, so the size is a
-decision and not a surprise.
+starts. Every slice keeps main green and functionality whole: a
+slice never breaks the build and never breaks behavior. The slicing
+toolkit is standard: branch by abstraction, feature flags,
+expand-and-contract, and landing new code unwired until the slice
+that connects it. A half-finished feature lives behind a flag or
+behind an abstraction, never on a long-lived branch.
+
+What survives those techniques is genuinely atomic: a change with no
+intermediate state that both compiles and behaves. That list is
+short, and claiming it carries a burden of proof — the ticket names
+the change as atomic up front, before the work starts, and says why
+the slicing techniques do not apply. The size is then a decision
+with its reasoning shown, not a surprise.
 
 The reason is review. A reviewer can genuinely verify 400 lines;
 past that they skim, and skimmed review is how defects and design
