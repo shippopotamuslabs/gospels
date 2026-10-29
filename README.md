@@ -15,7 +15,8 @@ each, in one place, with the projects pointing at it.
 - `BUTTON-SHAPE-GOSPEL.md`: button shape and the press morph. Full pill by default, 12dp square variant.
 - `GLASS-BARS-GOSPEL.md`: top and bottom bars in glass, on Haze. The top bar stays glazed at rest.
 - `WUMBO-GOSPEL.md`: the voice. Every word a user reads, in every app and on the site.
-- `ARCHITECTURE-GOSPEL.md`: Clean Architecture: dependency direction, layer responsibilities, domain model policy, the presentation contract.
+- `ARCHITECTURE-GOSPEL.md`: Clean Architecture for Android/Kotlin: dependency direction, layer responsibilities, domain model policy, the presentation contract.
+- `RUST-ARCHITECTURE-GOSPEL.md`: the same dependency rule in Rust form: crates as boundaries, traits only at genuine ports, checked facts as types, typed errors.
 - `CODE-STYLE-GOSPEL.md`: Kotlin and Compose style: naming, formatting, stability, coroutines.
 - `TESTING-GOSPEL.md`: testing standards: pyramid levels, classical school, fakes over mocks; Android grounding in JUnit 5, Turbine, Robolectric.
 
