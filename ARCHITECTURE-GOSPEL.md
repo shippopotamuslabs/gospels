@@ -532,6 +532,35 @@ exception is written into the repo's architecture contract with reason
 and owner. "Too small to matter" is never a reason — §10 shows the
 extraction is small by construction.
 
+### 11.1 Change Size — The 400-Line Rule
+
+A pull request carries about 400 lines of production code. Tests do
+not count toward the 400: a test-heavy PR runs longer and that is
+fine, and a test is never cut to fit the number. What counts is the
+production diff the reviewer has to hold in their head.
+
+Tickets are sliced to fit the rule. Work that cannot land in
+~400-line production slices is split into multiple tickets before it
+starts. Every slice keeps main green and functionality whole: a
+slice never breaks the build and never breaks behavior. The slicing
+toolkit is standard: branch by abstraction, feature flags,
+expand-and-contract, and landing new code unwired until the slice
+that connects it. A half-finished feature lives behind a flag or
+behind an abstraction, never on a long-lived branch.
+
+What survives those techniques is genuinely atomic: a change with no
+intermediate state that both compiles and behaves. That list is
+short, and claiming it carries a burden of proof — the ticket names
+the change as atomic up front, before the work starts, and says why
+the slicing techniques do not apply. The size is then a decision
+with its reasoning shown, not a surprise.
+
+The reason is review. A reviewer can genuinely verify 400 lines;
+past that they skim, and skimmed review is how defects and design
+drift get merged. Size also breaks tooling outright: GitHub refuses
+oversized diffs (a 770-file PR returns HTTP 406), and an unreviewable
+PR gets no automated review at all.
+
 ---
 
 ## 12. Presentation Contract
