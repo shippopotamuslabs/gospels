@@ -148,6 +148,20 @@ persistence type outside `infrastructure` is a misplacement.
 | Explicitly catch and rethrow `CancellationException`. | Catch `Exception` generically without re-throwing cancellation. |
 | Return `Result.retry()` on transient network/IO failures. | Return `Result.failure()` for recoverable quota timeouts. |
 
+## 10. Partial Success: Diagnostics as Values
+
+When a computation can degrade without failing — it skips a step, drops an input, falls back to a default — the degradation is reported as data, not logged and not swallowed. Below the boundary there is no other sanctioned channel: throwing kills work that can still succeed, and silent skipping makes the defect unobservable.
+
+- **Shape.** The computation returns an outcome: its value plus a list of diagnostics. Diagnostics are a sealed type owned by the feature area, defined in the domain layer next to the computation's models (ARCHITECTURE-GOSPEL §3.1 counts diagnostics among the domain's contents). The outcome rides in the operation's normal transport (`Result<Outcome>` when the computation can also fail outright).
+- **Diagnostics are data.** Each diagnostic carries what was skipped or degraded, why, and the identifying context needed to act on it (the entity, the position, the offending input). No logging, no ports, no I/O below the boundary; a diagnostic is constructed, never emitted.
+- **The boundary drains once.** The caller at the application/feature boundary iterates the diagnostics on success and logs each exactly once through its existing logging wiring. The partial-success rule mirrors the failure rule: log once, at the boundary, from data.
+- **Diagnostics never reach the UI.** They are operational signal, not user copy. If the user needs to know, that is product state (next rule).
+- **Diagnostics vs state.** When a degradation is itself meaningful to the product, something the user or another computation should react to, model it in the returned state instead. Diagnostics cover degradations the system tolerates at runtime but must be able to see in logs. When in doubt, state is the richer claim; diagnostics are the default for purely operational loss.
+- **Tests assert diagnostics as values.** A degradation path is covered by asserting the exact diagnostics on the returned outcome. Verifying a logger mock is not a substitute.
+- **Adoption is incremental.** New degradation paths use the pattern from the start. Existing silent paths adopt it when next touched under their own ticket; there is no retrofit sweep.
+
+**Worked example.** Stratum's progression snapshot (STR-250): the sealed `ProgressionDiagnostic` in the domain records each history baseline the load math had to skip and why; the snapshot use case returns the diagnostics on its outcome; the session runtime at the feature boundary logs each exactly once. Stratum's code style contract carries the file-level detail as local material.
+
 ## Local material
 
 Example tables with a repo's own package names, class names, and
