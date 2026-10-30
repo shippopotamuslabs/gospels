@@ -426,6 +426,8 @@ adapter catches platform exceptions and maps them to the `Refused`
 branch; preconditions and policy refusals map to `NotAllowed` before
 any platform call.
 
+Failure classification for the failures these outcomes carry (expected vs exceptional, semantic ownership, telemetry routing, alerting) is CODE-STYLE-GOSPEL §11.
+
 ---
 
 ## 9. Desired State vs Actual State (Persisted Intent vs Runtime Actuals)
